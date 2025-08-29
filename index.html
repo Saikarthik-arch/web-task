@@ -1,0 +1,414 @@
+<!-- =====================
+File: index.html
+Project: ChatPrep Coach — a chat-style study prep web app
+Stack: Static HTML/CSS/JS (no backend) + localStorage
+Deploy: GitHub Pages via Actions (see .github/workflows/deploy.yml)
+===================== -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ChatPrep Coach</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>ChatPrep Coach</h1>
+    <div class="controls">
+      <button id="btn-import" title="Import questions JSON">Import</button>
+      <button id="btn-export" title="Export questions JSON">Export</button>
+      <button id="btn-clear" class="danger" title="Clear all data">Reset</button>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="card" id="bank">
+      <h2>Question Bank</h2>
+      <p class="muted">Create topics and add questions. Each question can be MCQ or open-ended.</p>
+
+      <div class="row">
+        <input id="topic-name" placeholder="New topic name (e.g., NLP Basics)" />
+        <button id="btn-add-topic">Add Topic</button>
+      </div>
+
+      <div id="topics"></div>
+
+      <template id="topic-template">
+        <details class="topic">
+          <summary>
+            <span class="topic-title"></span>
+            <span class="chip count"></span>
+            <button class="ghost small btn-del-topic" title="Delete topic">✕</button>
+          </summary>
+          <form class="q-form">
+            <input class="q-text" placeholder="Question text" required />
+            <select class="q-type">
+              <option value="mcq">MCQ</option>
+              <option value="open">Open</option>
+            </select>
+            <input class="q-options" placeholder="Comma-separated options (for MCQ)" />
+            <input class="q-answer" placeholder="Answer (text or exact option)" />
+            <button class="small">Add Question</button>
+          </form>
+          <ul class="q-list"></ul>
+        </details>
+      </template>
+
+      <template id="q-item-template">
+        <li class="q-item">
+          <span class="q-main"></span>
+          <span class="muted q-meta"></span>
+          <button class="ghost small btn-del-q">Delete</button>
+        </li>
+      </template>
+    </section>
+
+    <section class="card" id="chat">
+      <h2>Prep Session</h2>
+      <div class="row">
+        <select id="session-topic"></select>
+        <input id="session-count" type="number" min="1" value="5" />
+        <button id="btn-start">Start</button>
+      </div>
+
+      <div id="chatlog" class="chatlog" aria-live="polite"></div>
+
+      <form id="answer-form" class="answer hidden">
+        <div id="mcq-area" class="hidden"></div>
+        <input id="answer-input" class="hidden" placeholder="Type your answer…" autocomplete="off" />
+        <button>Submit</button>
+      </form>
+    </section>
+
+    <section class="card" id="progress">
+      <h2>Progress</h2>
+      <div id="stats" class="stats"></div>
+      <button id="btn-export-report" class="secondary">Download Report</button>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <small>© 2025 ChatPrep Coach — Built with ♥️ using vanilla JS. Data stored locally in your browser.</small>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
+
+<!-- =====================
+File: styles.css
+===================== -->
+<style>
+:root{
+  --bg:#0f172a; --panel:#111827; --muted:#94a3b8; --primary:#22d3ee; --danger:#f87171; --ok:#34d399;
+  --text:#e5e7eb; --chip:#1f2937; --shadow:0 10px 25px rgba(0,0,0,.25);
+}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(180deg,#0b1220,#0f172a);color:var(--text);font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans}
+.topbar{position:sticky;top:0;z-index:10;display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:rgba(17,24,39,.8);backdrop-filter:blur(8px);border-bottom:1px solid #1f2937}
+.topbar h1{margin:0;font-size:20px}
+.controls button{margin-left:8px}
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;padding:16px}
+.card{background:var(--panel);border:1px solid #1f2937;border-radius:16px;box-shadow:var(--shadow);padding:16px}
+.row{display:flex;gap:8px;align-items:center;margin:8px 0}
+input, select, button{padding:10px 12px;border-radius:10px;border:1px solid #334155;background:#0b1220;color:var(--text)}
+button{cursor:pointer}
+button:hover{filter:brightness(1.1)}
+button.secondary{border-color:#334155;background:#0b1220}
+button.danger{border-color:var(--danger);color:var(--danger);background:#0b1220}
+button.ghost{background:transparent;border-color:#334155}
+button.small{padding:6px 10px;font-size:12px}
+.muted{color:var(--muted)}
+.chip{background:var(--chip);padding:2px 8px;border-radius:999px;margin-left:8px;font-size:12px}
+.topic summary{display:flex;align-items:center;gap:8px}
+.q-list{list-style:none;padding-left:0;margin:8px 0;display:flex;flex-direction:column;gap:8px}
+.q-item{display:flex;justify-content:space-between;gap:8px;background:#0b1220;border:1px solid #1f2937;padding:8px;border-radius:10px}
+.chatlog{height:360px;overflow:auto;border:1px solid #1f2937;border-radius:12px;padding:12px;background:#0b1220}
+.msg{display:flex;gap:8px;margin:10px 0}
+.msg .bubble{padding:10px 12px;border-radius:12px;max-width:80%}
+.msg.user .bubble{margin-left:auto;background:#111827;border:1px solid #1f2937}
+.msg.bot .bubble{background:#05151a;border:1px solid #0e2b33}
+.msg .tag{font-size:12px;color:var(--muted)}
+.answer{display:flex;gap:8px;margin-top:10px}
+#mcq-area{display:grid;gap:8px}
+.option{display:flex;align-items:center;gap:8px;border:1px solid #1f2937;padding:8px;border-radius:10px;cursor:pointer}
+.option input{margin:0}
+.correct{color:var(--ok)}
+.wrong{color:var(--danger)}
+.hidden{display:none}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.stat{background:#0b1220;border:1px solid #1f2937;border-radius:12px;padding:12px}
+.footer{padding:16px;text-align:center;color:var(--muted)}
+@media(max-width:980px){.grid{grid-template-columns:1fr}}
+</style>
+
+<!-- =====================
+File: app.js
+===================== -->
+<script>
+const storeKey = 'chatprep_v1';
+const $ = (sel,scope=document)=>scope.querySelector(sel);
+const $$ = (sel,scope=document)=>Array.from(scope.querySelectorAll(sel));
+
+const state = {
+  topics: {}, // {topic: [{text,type,options,answer,id}]}
+  stats: { sessions: 0, answered: 0, correct: 0 }
+};
+
+function load(){
+  const data = JSON.parse(localStorage.getItem(storeKey)||'null');
+  if(data){ Object.assign(state, data); }
+  renderTopics();
+  renderTopicSelect();
+  renderStats();
+}
+function save(){ localStorage.setItem(storeKey, JSON.stringify(state)); }
+
+// UI Renders
+function renderTopics(){
+  const wrap = $('#topics'); wrap.innerHTML='';
+  const tmpl = $('#topic-template').content;
+  Object.entries(state.topics).forEach(([name, list])=>{
+    const node = document.importNode(tmpl,true);
+    $('.topic-title', node).textContent = name;
+    $('.count', node).textContent = `${list.length} q`; 
+    const details = $('details.topic', node);
+
+    // add question
+    const form = $('.q-form', node);
+    form.addEventListener('submit', e=>{
+      e.preventDefault();
+      const q = {
+        id: crypto.randomUUID(),
+        text: $('.q-text', form).value.trim(),
+        type: $('.q-type', form).value,
+        options: $('.q-options', form).value.split(',').map(s=>s.trim()).filter(Boolean),
+        answer: $('.q-answer', form).value.trim()
+      };
+      if(!q.text) return;
+      state.topics[name].push(q); save(); renderTopics(); renderTopicSelect();
+      form.reset(); details.open = true;
+    });
+
+    // delete topic
+    $('.btn-del-topic', node).addEventListener('click', ()=>{
+      if(confirm(`Delete topic "${name}"?`)){
+        delete state.topics[name]; save(); renderTopics(); renderTopicSelect();
+      }
+    });
+
+    // list questions
+    const ul = $('.q-list', node); const qtmpl = $('#q-item-template').content;
+    list.forEach(q=>{
+      const li = document.importNode(qtmpl,true);
+      $('.q-main', li).textContent = q.text;
+      $('.q-meta', li).textContent = q.type==='mcq' ? `MCQ · ${q.options.length} options` : 'Open';
+      $('.btn-del-q', li).addEventListener('click', ()=>{
+        state.topics[name] = state.topics[name].filter(x=>x.id!==q.id); save(); renderTopics(); renderTopicSelect();
+      });
+      ul.appendChild(li);
+    });
+
+    wrap.appendChild(node);
+  });
+}
+
+function renderTopicSelect(){
+  const sel = $('#session-topic'); sel.innerHTML='';
+  Object.keys(state.topics).forEach(t=>{
+    const o = document.createElement('option'); o.value=t;o.textContent=t; sel.appendChild(o);
+  });
+}
+
+function renderStats(){
+  const s = state.stats; const wrap = $('#stats');
+  const acc = s.answered? Math.round((s.correct/s.answered)*100) : 0;
+  wrap.innerHTML = `
+    <div class="stat">Sessions<br><strong>${s.sessions}</strong></div>
+    <div class="stat">Answered<br><strong>${s.answered}</strong></div>
+    <div class="stat">Correct<br><strong>${s.correct}</strong></div>
+    <div class="stat">Accuracy<br><strong>${acc}%</strong></div>`;
+}
+
+// Import / Export
+$('#btn-export').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify(state.topics,null,2)], {type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='chatprep-topics.json'; a.click();
+});
+$('#btn-import').addEventListener('click', ()=>{
+  const input=document.createElement('input'); input.type='file'; input.accept='.json';
+  input.onchange=()=>{
+    const file=input.files[0]; if(!file) return;
+    const r=new FileReader(); r.onload=()=>{
+      try{ const data=JSON.parse(r.result);
+        if(typeof data!== 'object') throw new Error('Invalid');
+        state.topics = data; save(); renderTopics(); renderTopicSelect();
+      }catch(e){ alert('Invalid JSON'); }
+    }; r.readAsText(file);
+  }; input.click();
+});
+$('#btn-clear').addEventListener('click', ()=>{
+  if(confirm('Clear all topics and stats?')){ localStorage.removeItem(storeKey); location.reload(); }
+});
+
+// Session / Chat
+let current = null; // {topic, queue:[], index, score}
+function botSay(text){ addMsg('bot', text); }
+function userSay(text){ addMsg('user', text); }
+function addMsg(who, text){
+  const el = document.createElement('div'); el.className = `msg ${who}`;
+  el.innerHTML = `<div class="bubble">${text}</div>`;
+  $('#chatlog').appendChild(el); $('#chatlog').scrollTop = $('#chatlog').scrollHeight;
+}
+
+function askNext(){
+  const q = current.queue[current.index];
+  if(!q){ endSession(); return; }
+  botSay(`<div class="tag">Q${current.index+1}/${current.total}</div>${q.text}`);
+  const af = $('#answer-form'); $('#answer-input').classList.add('hidden'); $('#mcq-area').classList.add('hidden');
+  af.classList.remove('hidden'); af.reset();
+  if(q.type==='mcq'){
+    const area = $('#mcq-area'); area.innerHTML=''; area.classList.remove('hidden');
+    q.options.forEach((opt,i)=>{
+      const id = `opt_${q.id}_${i}`;
+      const row = document.createElement('label'); row.className='option';
+      row.innerHTML = `<input type="radio" name="mcq" value="${opt}" id="${id}"><span>${opt}</span>`;
+      area.appendChild(row);
+    });
+  }else{
+    $('#answer-input').classList.remove('hidden'); $('#answer-input').focus();
+  }
+}
+
+$('#btn-start').addEventListener('click', ()=>{
+  const t = $('#session-topic').value; const n = parseInt($('#session-count').value||'5',10);
+  const pool = (state.topics[t]||[]).slice();
+  if(pool.length===0){ alert('This topic has no questions yet.'); return; }
+  const count = Math.min(n, pool.length);
+  const queue = shuffle(pool).slice(0, count);
+  current = { topic: t, queue, index:0, score:0, total: count };
+  $('#chatlog').innerHTML=''; botSay(`Starting <strong>${t}</strong> — ${count} questions. Good luck!`);
+  state.stats.sessions++; save(); renderStats();
+  askNext();
+});
+
+$('#answer-form').addEventListener('submit', e=>{
+  e.preventDefault(); if(!current) return;
+  const q = current.queue[current.index];
+  let ans = '';
+  if(q.type==='mcq'){
+    const picked = $('input[name="mcq"]:checked'); if(!picked){ alert('Choose an option'); return; }
+    ans = picked.value;
+  }else{
+    ans = $('#answer-input').value.trim(); if(!ans){ alert('Type an answer'); return; }
+  }
+  userSay(ans);
+  const correct = normalize(ans) === normalize(q.answer);
+  state.stats.answered++; if(correct){ state.stats.correct++; current.score++; }
+  save(); renderStats();
+  botSay(correct? `<span class="correct">✓ Correct!</span>` : `<span class="wrong">✗</span> Correct answer: <em>${q.answer}</em>`);
+  current.index++; setTimeout(askNext, 400);
+});
+
+function endSession(){
+  $('#answer-form').classList.add('hidden');
+  const pct = Math.round((current.score/current.total)*100);
+  botSay(`<strong>Session complete.</strong> Score: ${current.score}/${current.total} (${pct}%).`);
+  current=null;
+}
+
+function shuffle(a){
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a;
+}
+function normalize(s){ return String(s).toLowerCase().trim(); }
+
+// Export simple CSV progress report
+$('#btn-export-report').addEventListener('click', ()=>{
+  const s = state.stats;
+  const csv = `metric,value\nSessions,${s.sessions}\nAnswered,${s.answered}\nCorrect,${s.correct}\nAccuracy,${s.answered?((s.correct/s.answered)*100).toFixed(1):0}%\n`;
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='chatprep-report.csv'; a.click();
+});
+
+// Sample seed data for quick start
+(function seed(){
+  if(Object.keys(state.topics).length) return;
+  state.topics = {
+    "NLP Basics": [
+      {id:crypto.randomUUID(), text:"Define tokenization.", type:"open", options:[], answer:"splitting text into tokens"},
+      {id:crypto.randomUUID(), text:"Select a smoothing technique.", type:"mcq", options:["ReLU","Laplace","Dropout","Pooling"], answer:"Laplace"},
+      {id:crypto.randomUUID(), text:"What does POS stand for?", type:"open", options:[], answer:"part of speech"}
+    ],
+    "IoT": [
+      {id:crypto.randomUUID(), text:"RFID stands for?", type:"open", options:[], answer:"radio frequency identification"},
+      {id:crypto.randomUUID(), text:"Pick an IoT protocol.", type:"mcq", options:["AMQP","SMTP","FTP","HDMI"], answer:"AMQP"}
+    ]
+  };
+})();
+
+load();
+</script>
+
+<!-- =====================
+File: README.md (rendered on GitHub)
+===================== -->
+<!--
+# ChatPrep Coach
+
+A lightweight, chat-style study prep web app. Create your own topics and questions (MCQ or open-ended), run timed chat sessions, and track your accuracy — all in the browser with localStorage. Perfect for exam revision, interview prep, or daily micro-learning.
+
+## Features
+- Topic & question bank (MCQ + open-ended)
+- Chat-style quiz sessions
+- Progress metrics & CSV export
+- Import/export your question bank as JSON
+- 100% static (deploy to GitHub Pages)
+
+## Quick Start
+1. Open `index.html` in your browser, or deploy with GitHub Pages.
+2. Add a topic and a few questions.
+3. Start a session from the Prep panel and answer in chat.
+
+## Local Development
+No build needed. Edit `index.html`, `styles.css`, `app.js`.
+
+## Contributing
+- Create an issue (e.g., "Add timer & streaks")
+- Branch from `main`: `git checkout -b feature/timer`
+- Commit and push, then open a PR to `main`
+- At least one reviewer approval required
+
+## License
+MIT
+-->
+
+<!-- =====================
+File: .github/workflows/deploy.yml (GitHub Pages)
+===================== -->
+<!--
+name: Deploy to GitHub Pages
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+-->
